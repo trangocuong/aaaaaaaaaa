@@ -1,0 +1,52 @@
+        private static void ParseHeaderInfo(List<string> lines, int startIndex, LotResult lot)
+        {
+            // Giới hạn an toàn để tránh treo
+            int limit = Math.Min(startIndex + 200, lines.Count);
+
+            for (int i = startIndex; i < limit; i++)
+            {
+                string line = lines[i].Trim();
+
+                // =========================================================
+                // ĐIỀU KIỆN DỪNG (QUAN TRỌNG)
+                // =========================================================
+
+                // 1. Gặp tín hiệu kết thúc bản tin thành công -> DỪNG
+                if (line.Contains("Recive S14F3 successfully")) break;
+
+                // 2. Gặp sự kiện màn hình hoặc nút bấm khác -> DỪNG
+                // (Chặn việc đọc lố sang Lot tiếp theo)
+                if (i > startIndex && (line.Contains("[MAIN]") || line.Contains("Dialog_LotIn"))) break;
+
+                // [ĐÃ XÓA] Điều kiện break khi gặp "->>Received" vì nó chặn ngay dòng dữ liệu đầu tiên.
+
+                // =========================================================
+                // PARSE DỮ LIỆU
+                // =========================================================
+
+                if (line.Contains("A PARTID")) lot.PartNo = GetNextAValue(lines, i);
+                else if (string.IsNullOrEmpty(lot.LotNo) && line.Contains("A LOTINFO"))
+                {
+                    lot.LotNo = GetNextAValue(lines, i);
+                }
+                // Tìm LotID nếu log có cấu trúc A LOT -> Value
+                else if (line.Contains("A LOT") && !line.Contains("LOTINFO"))
+                {
+                     string val = GetNextAValue(lines, i);
+                     if (!string.IsNullOrEmpty(val)) lot.LotNo = val;
+                }
+
+                // Lấy số lượng
+                else if (line.Contains("A QTY") || line.Contains("A OQTY"))
+                {
+                    if (int.TryParse(GetNextAValue(lines, i), out int q)) lot.InQty = q;
+                }
+
+                // Các thông tin khác
+                else if (line.Contains("A FABSITE")) lot.FabSite = GetNextAValue(lines, i);
+                else if (line.Contains("A TIER")) lot.Tier = GetNextAValue(lines, i);
+                else if (line.Contains("A OPTCODE")) lot.Option = GetNextAValue(lines, i);
+                else if (line.Contains("A PCBVENDOR")) lot.Vendor = GetNextAValue(lines, i);
+                else if (line.Contains("A ASSYLINE")) lot.SmtLine = GetNextAValue(lines, i);
+            }
+        }
